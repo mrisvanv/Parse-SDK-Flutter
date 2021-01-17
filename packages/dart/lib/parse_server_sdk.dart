@@ -32,6 +32,7 @@ part 'src/network/parse_live_query.dart';
 part 'src/network/parse_query.dart';
 part 'src/objects/parse_acl.dart';
 part 'src/objects/parse_base.dart';
+part 'src/objects/parse_batch.dart';
 part 'src/objects/parse_cloneable.dart';
 part 'src/objects/parse_config.dart';
 part 'src/objects/parse_error.dart';

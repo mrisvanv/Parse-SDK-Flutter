@@ -14,6 +14,7 @@ const String keyEndPointInstallations = '/installations';
 const String keyEndPointVerificationEmail = '/verificationEmailRequest';
 const String keyEndPointRequestPasswordReset = '/requestPasswordReset';
 const String keyEndPointClasses = '/classes/';
+const String keyEndPointBatch = '/batch';
 const String keyEndPointHealth = '/health';
 const String keyEndPointAggregate = '/aggregate/';
 

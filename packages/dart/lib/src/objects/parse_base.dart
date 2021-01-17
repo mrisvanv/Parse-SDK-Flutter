@@ -4,6 +4,7 @@ abstract class ParseBase {
   String parseClassName;
   Type type;
   final bool _dirty = false; // reserved property
+  bool _toDelete = false; // reserved property
   final Map<String, dynamic> _unsavedChanges = Map<String, dynamic>();
   final Map<String, dynamic> _savingChanges = Map<String, dynamic>();
 
@@ -14,6 +15,12 @@ abstract class ParseBase {
   String get objectId => get<String>(keyVarObjectId);
 
   set objectId(String objectId) => set<String>(keyVarObjectId, objectId);
+
+  bool get toDelete => _toDelete;
+
+  set toDelete(bool value) {
+    _toDelete = value;
+  }
 
   bool isDirty({String key}) {
     if (key != null) {
