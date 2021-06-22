@@ -2,11 +2,11 @@ part of flutter_parse_sdk;
 
 class ParseWebFile extends ParseFileBase {
   ParseWebFile(this.file,
-      {@required String name,
-      String url,
-      bool debug,
-      ParseHTTPClient client,
-      bool autoSendSessionId})
+      {required String name,
+      String? url,
+      bool? debug,
+      ParseClient? client,
+      bool? autoSendSessionId})
       : super(
           name: name,
           url: url,
@@ -15,35 +15,34 @@ class ParseWebFile extends ParseFileBase {
           autoSendSessionId: autoSendSessionId,
         );
 
-  Uint8List file;
+  Uint8List? file;
 
   @override
-  Future<ParseWebFile> download({ProgressCallback progressCallback}) async {
+  Future<ParseWebFile> download({ProgressCallback? progressCallback}) async {
     if (url == null) {
       return this;
     }
 
-    final Response<List<int>> response = await _client.get<List<int>>(
-      url,
-      options: Options(responseType: ResponseType.bytes),
+    final ParseNetworkByteResponse response = await _client.getBytes(
+      url!,
       onReceiveProgress: progressCallback,
     );
-    file = response.data;
+    file = response.bytes as Uint8List?;
 
     return this;
   }
 
   @override
-  Future<ParseResponse> upload({ProgressCallback progressCallback}) async {
+  Future<ParseResponse> upload({ProgressCallback? progressCallback}) async {
     if (saved) {
       //Creates a Fake Response to return the correct result
       final Map<String, String> response = <String, String>{
-        'url': url,
+        'url': url!,
         'name': name
       };
       return handleResponse<ParseWebFile>(
           this,
-          Response<String>(data: json.encode(response), statusCode: 201),
+          ParseNetworkResponse(data: json.encode(response), statusCode: 201),
           ParseApiRQ.upload,
           _debug,
           parseClassName);
@@ -54,11 +53,11 @@ class ParseWebFile extends ParseFileBase {
           mime(url ?? name) ?? 'application/octet-stream',
     };
     try {
-      final String uri = _client.data.serverUrl + '$_path';
-      final Response<String> response = await _client.post<String>(
+      final String uri = ParseCoreData().serverUrl + '$_path';
+      final ParseNetworkResponse response = await _client.postBytes(
         uri,
-        options: Options(headers: headers),
-        data: Stream<List<int>>.fromIterable(<List<int>>[file]),
+        options: ParseNetworkOptions(headers: headers),
+        data: Stream<List<int>>.fromIterable(<List<int>>[file!]),
         onSendProgress: progressCallback,
       );
       if (response.statusCode == 201) {

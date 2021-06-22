@@ -2,16 +2,16 @@ part of flutter_parse_sdk;
 
 class ParseInstallation extends ParseObject {
   /// Creates an instance of ParseInstallation
-  ParseInstallation(
-      {bool debug, ParseHTTPClient client, bool autoSendSessionId})
-      : super(keyClassInstallation) {
-    _debug = isDebugEnabled(objectLevelDebug: debug);
-    _client = client ??
-        ParseHTTPClient(
-            sendSessionId:
-                autoSendSessionId ?? ParseCoreData().autoSendSessionId,
-            securityContext: ParseCoreData().securityContext);
-  }
+  ParseInstallation({
+    bool? debug,
+    ParseClient? client,
+    bool? autoSendSessionId,
+  }) : super(
+          keyClassInstallation,
+          client: client,
+          autoSendSessionId: autoSendSessionId,
+          debug: debug,
+        );
 
   ParseInstallation.forQuery() : super(keyClassUser);
 
@@ -24,45 +24,44 @@ class ParseInstallation extends ParseObject {
     keyAppIdentifier,
     keyParseVersion
   ];
-  static String _currentInstallationId;
+  static String? _currentInstallationId;
 
   //Getters/setters
-  Map<String, dynamic> get acl => super.get<Map<String, dynamic>>(keyVarAcl);
+  Map<String, dynamic> get acl => super
+      .get<Map<String, dynamic>>(keyVarAcl, defaultValue: <String, dynamic>{})!;
 
   set acl(Map<String, dynamic> acl) =>
       set<Map<String, dynamic>>(keyVarAcl, acl);
 
-  String get deviceToken => super.get<String>(keyDeviceToken);
+  String? get deviceToken => super.get<String>(keyDeviceToken);
 
-  set deviceToken(String deviceToken) =>
-      set<String>(keyDeviceToken, deviceToken);
+  set deviceToken(String? deviceToken) =>
+      set<String?>(keyDeviceToken, deviceToken);
 
-  String get deviceType => super.get<String>(keyDeviceType);
+  String? get deviceType => super.get<String>(keyDeviceType);
 
-  String get installationId => super.get<String>(keyInstallationId);
+  String? get installationId => super.get<String>(keyInstallationId);
 
-  set _installationId(String installationId) =>
-      set<String>(keyInstallationId, installationId);
+  set _installationId(String? installationId) =>
+      set<String?>(keyInstallationId, installationId);
 
-  String get appName => super.get<String>(keyAppName);
+  String? get appName => super.get<String>(keyAppName);
 
-  String get appVersion => super.get<String>(keyAppVersion);
+  String? get appVersion => super.get<String>(keyAppVersion);
 
-  String get appIdentifier => super.get<String>(keyAppIdentifier);
+  String? get appIdentifier => super.get<String>(keyAppIdentifier);
 
-  String get parseVersion => super.get<String>(keyParseVersion);
+  String? get parseVersion => super.get<String>(keyParseVersion);
 
   static Future<bool> isCurrent(ParseInstallation installation) async {
-    _currentInstallationId ??= (await _getFromLocalStore()).installationId;
+    _currentInstallationId ??= (await _getFromLocalStore())?.installationId;
     return _currentInstallationId != null &&
         installation.installationId == _currentInstallationId;
   }
 
   /// Gets the current installation from storage
   static Future<ParseInstallation> currentInstallation() async {
-    ParseInstallation installation = await _getFromLocalStore();
-    installation ??= await _createInstallation();
-    return installation;
+    return (await _getFromLocalStore()) ?? (await _createInstallation());
   }
 
   /// Updates the installation with current device data
@@ -83,27 +82,29 @@ class ParseInstallation extends ParseObject {
     }
 
     //Locale
-    set<String>(keyLocaleIdentifier, ParseCoreData().locale);
+    set<String?>(keyLocaleIdentifier, ParseCoreData().locale);
 
     //Timezone
 
     //App info
-    set<String>(keyAppName, ParseCoreData().appName);
-    set<String>(keyAppVersion, ParseCoreData().appVersion);
-    set<String>(keyAppIdentifier, ParseCoreData().appPackageName);
+    set<String?>(keyAppName, ParseCoreData().appName);
+    set<String?>(keyAppVersion, ParseCoreData().appVersion);
+    set<String?>(keyAppIdentifier, ParseCoreData().appPackageName);
     set<String>(keyParseVersion, keySdkVersion);
   }
 
   @override
-  Future<ParseResponse> create() async {
+  Future<ParseResponse> create({bool allowCustomObjectId = false}) async {
     final bool isCurrent = await ParseInstallation.isCurrent(this);
     if (isCurrent) {
       await _updateInstallation();
     }
 
-    final ParseResponse parseResponse = await _create();
+    final ParseResponse parseResponse =
+        await _create(allowCustomObjectId: allowCustomObjectId);
     if (parseResponse.success && isCurrent) {
-      saveInStorage(keyParseStoreInstallation);
+      clearUnsavedChanges();
+      await saveInStorage(keyParseStoreInstallation);
     }
     return parseResponse;
   }
@@ -118,20 +119,21 @@ class ParseInstallation extends ParseObject {
     //ParseResponse parseResponse = await super.save();
     final ParseResponse parseResponse = await _save();
     if (parseResponse.success && isCurrent) {
-      saveInStorage(keyParseStoreInstallation);
+      clearUnsavedChanges();
+      await saveInStorage(keyParseStoreInstallation);
     }
     return parseResponse;
   }
 
   /// Gets the locally stored installation
-  static Future<ParseInstallation> _getFromLocalStore() async {
+  static Future<ParseInstallation?> _getFromLocalStore() async {
     final CoreStore coreStore = ParseCoreData().getStore();
 
-    final String installationJson =
+    final String? installationJson =
         await coreStore.getString(keyParseStoreInstallation);
 
     if (installationJson != null) {
-      final Map<String, dynamic> installationMap =
+      final Map<String, dynamic>? installationMap =
           json.decode(installationJson);
 
       if (installationMap != null) {
@@ -146,7 +148,7 @@ class ParseInstallation extends ParseObject {
   /// Assumes that this is called because there is no previous installation
   /// so it creates and sets the static current installation UUID
   static Future<ParseInstallation> _createInstallation() async {
-    _currentInstallationId ??= Uuid().v4();
+    _currentInstallationId ??= const Uuid().v4();
 
     final ParseInstallation installation = ParseInstallation();
     installation._installationId = _currentInstallationId;
@@ -157,10 +159,14 @@ class ParseInstallation extends ParseObject {
   }
 
   /// Creates a new object and saves it online
-  Future<ParseResponse> _create() async {
+  Future<ParseResponse> _create({bool allowCustomObjectId = false}) async {
     try {
-      final String uri = '${_client.data.serverUrl}$keyEndPointInstallations';
-      final String body = json.encode(toJson(forApiRQ: true));
+      final String uri =
+          '${ParseCoreData().serverUrl}$keyEndPointInstallations';
+      final String body = json.encode(toJson(
+        forApiRQ: true,
+        allowCustomObjectId: allowCustomObjectId,
+      ));
       final Map<String, String> headers = <String, String>{
         keyHeaderContentType: keyHeaderContentTypeJson
       };
@@ -169,8 +175,8 @@ class ParseInstallation extends ParseObject {
             ParseApiRQ.create.toString(), uri, body);
       }
 
-      final Response<String> result = await _client.post<String>(uri,
-          data: body, options: Options(headers: headers));
+      final ParseNetworkResponse result = await _client.post(uri,
+          data: body, options: ParseNetworkOptions(headers: headers));
 
       //Set the objectId on the object after it is created.
       //This allows you to perform operations on the object after creation
@@ -199,8 +205,7 @@ class ParseInstallation extends ParseObject {
           logRequest(ParseCoreData().appName, parseClassName,
               ParseApiRQ.save.toString(), uri, body);
         }
-        final Response<String> result =
-            await _client.put<String>(uri, data: body);
+        final ParseNetworkResponse result = await _client.put(uri, data: body);
         return handleResponse<ParseInstallation>(
             this, result, ParseApiRQ.save, _debug, parseClassName);
       } on Exception catch (e) {
@@ -227,14 +232,14 @@ class ParseInstallation extends ParseObject {
   Future<List<dynamic>> getSubscribedChannels() async {
     print('getSubscribedChannels');
     final ParseResponse apiResponse =
-        await ParseObject(keyClassInstallation).getObject(objectId);
+        await ParseObject(keyClassInstallation).getObject(objectId!);
 
     if (apiResponse.success) {
       final ParseObject installation = apiResponse.result;
-      return Future<List<dynamic>>.value(
-          installation.get<List<dynamic>>('channels'));
+      return Future<List<dynamic>>.value(installation
+          .get<List<dynamic>>('channels', defaultValue: <dynamic>[]));
     } else {
-      return null;
+      return <String>[];
     }
   }
 }

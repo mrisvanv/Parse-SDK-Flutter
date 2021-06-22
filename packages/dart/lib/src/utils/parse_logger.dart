@@ -17,13 +17,13 @@ void logAPIResponse(
       responseString += '\nReponse: OK';
     }
   } else if (!parseResponse.success) {
-    responseString += '\nStatus Code: ${parseResponse.error.code}';
-    responseString += '\nType: ${parseResponse.error.type}';
+    responseString += '\nStatus Code: ${parseResponse.error!.code}';
+    responseString += '\nType: ${parseResponse.error!.type}';
 
     final String errorOrException =
-        parseResponse.error.exception != null ? 'Exception' : 'Error';
+        parseResponse.error!.exception != null ? 'Exception' : 'Error';
 
-    responseString += '\n$errorOrException: ${parseResponse.error.message}';
+    responseString += '\n$errorOrException: ${parseResponse.error!.message}';
   }
 
   responseString += '\n╰-- \n';
@@ -31,40 +31,10 @@ void logAPIResponse(
   print(responseString);
 }
 
-void logCUrl(dio.Options options, dynamic data, String url) {
-  String curlCmd = 'curl';
-  curlCmd += ' -X ' + options.method;
-  bool compressed = false;
-  options.headers.forEach((String name, dynamic value) {
-    if (name?.toLowerCase() == 'accept-encoding' &&
-        value?.toString()?.toLowerCase() == 'gzip') {
-      compressed = true;
-    }
-    curlCmd += ' -H \'$name: $value\'';
-  });
-
-  //TODO: log request
-  // if (options.method == 'POST' || options.method == 'PUT') {
-  //   if (request is Request) {
-  //     final String body = latin1.decode(request.bodyBytes);
-  //     curlCmd += ' -d \'$body\'';
-  //   }
-  // }
-
-  curlCmd += (compressed ? ' --compressed ' : ' ') + url;
-  curlCmd += '\n\n ${Uri.decodeFull(url)}';
-  print('╭-- Parse Request');
-  print(curlCmd);
-  print('╰--');
-}
-
 void logRequest(
-    String appName, String className, String type, String uri, String body) {
+    String? appName, String className, String type, String uri, String body) {
   String requestString = ' \n';
-  String name = appName;
-  if (name.isNotEmpty) {
-    name = '$appName ';
-  }
+  final String name = appName != null ? '$appName ' : '';
   requestString += '----\n${name}API Request ($className : $type) :';
   requestString += '\nUri: $uri';
   requestString += '\nBody: $body';

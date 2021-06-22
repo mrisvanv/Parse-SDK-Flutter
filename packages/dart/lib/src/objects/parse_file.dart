@@ -5,27 +5,22 @@ class ParseFile extends ParseFileBase {
   ///
   /// {https://docs.parseplatform.org/rest/guide/#files/}
   ParseFile(this.file,
-      {String name,
-      String url,
-      bool debug,
-      ParseHTTPClient client,
-      bool autoSendSessionId})
+      {String? name,
+      String? url,
+      bool? debug,
+      ParseClient? client,
+      bool? autoSendSessionId})
       : super(
-          name: file != null ? path.basename(file.path) : name,
+          name: file != null ? path.basename(file.path) : name!,
           url: url,
           debug: debug,
           client: client,
           autoSendSessionId: autoSendSessionId,
         );
 
-  File file;
+  File? file;
 
   Future<ParseFile> loadStorage() async {
-    if (name == null) {
-      file = null;
-      return this;
-    }
-
     final File possibleFile = File('${ParseCoreData().fileDirectory}/$name');
     // ignore: avoid_slow_async_io
     final bool exists = await possibleFile.exists();
@@ -40,49 +35,49 @@ class ParseFile extends ParseFileBase {
   }
 
   @override
-  Future<ParseFile> download({ProgressCallback progressCallback}) async {
+  Future<ParseFile> download({ProgressCallback? progressCallback}) async {
     if (url == null) {
       return this;
     }
 
     file = File('${ParseCoreData().fileDirectory}/$name');
-    await file.create();
-    final Response<List<int>> response = await _client.get<List<int>>(
-      url,
-      options: Options(responseType: ResponseType.bytes),
+    await file!.create();
+    final ParseNetworkByteResponse response = await _client.getBytes(
+      url!,
       onReceiveProgress: progressCallback,
     );
-    await file.writeAsBytes(response.data);
+    await file!.writeAsBytes(response.bytes!);
 
     return this;
   }
 
   /// Uploads a file to Parse Server
   @override
-  Future<ParseResponse> upload({ProgressCallback progressCallback}) async {
+  Future<ParseResponse> upload({ProgressCallback? progressCallback}) async {
     if (saved) {
       //Creates a Fake Response to return the correct result
       final Map<String, String> response = <String, String>{
-        'url': url,
+        'url': url!,
         'name': name
       };
       return handleResponse<ParseFile>(
           this,
-          Response<String>(data: json.encode(response), statusCode: 201),
+          ParseNetworkResponse(data: json.encode(response), statusCode: 201),
           ParseApiRQ.upload,
           _debug,
           parseClassName);
     }
 
     final Map<String, String> headers = <String, String>{
-      HttpHeaders.contentTypeHeader: mime(file.path) ?? 'application/octet-stream',
+      HttpHeaders.contentTypeHeader:
+          mime(file!.path) ?? 'application/octet-stream',
     };
     try {
-      final String uri = _client.data.serverUrl + '$_path';
-      final Response<String> response = await _client.post<String>(
+      final String uri = ParseCoreData().serverUrl + '$_path';
+      final ParseNetworkResponse response = await _client.postBytes(
         uri,
-        options: Options(headers: headers),
-        data: file.openRead(),
+        options: ParseNetworkOptions(headers: headers),
+        data: file!.openRead(),
         onSendProgress: progressCallback,
       );
       if (response.statusCode == 201) {

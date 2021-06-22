@@ -1,62 +1,181 @@
-part of flutter_parse_sdk;
+import 'dart:convert';
+import 'dart:io';
 
-/// Creates a custom version of HTTP Client that has Parse Data Preset
-class ParseHTTPClient with DioMixin implements Dio {
-  ParseHTTPClient({bool sendSessionId = false, SecurityContext securityContext})
-      : _sendSessionId = sendSessionId {
-    options = BaseOptions();
-    httpClientAdapter = createHttpClientAdapter(securityContext);
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+import 'package:parse_server_sdk/parse_server_sdk.dart';
+
+class ParseHTTPClient extends ParseClient {
+  ParseHTTPClient(
+      {bool sendSessionId = false, SecurityContext? securityContext}) {
+    _client = _ParseHTTPClient(
+      sendSessionId: sendSessionId,
+      securityContext: securityContext,
+    );
   }
 
+  late _ParseHTTPClient _client;
+
+  Map<String, String>? get additionalHeaders => _client.additionalHeaders;
+
+  set additionalHeaders(Map<String, String>? additionalHeaders) =>
+      _client.additionalHeaders = additionalHeaders;
+
+  @override
+  Future<ParseNetworkResponse> get(
+    String path, {
+    ParseNetworkOptions? options,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final http.Response response = await _client.get(
+      Uri.parse(path),
+      headers: options?.headers,
+    );
+    return ParseNetworkResponse(
+        data: response.body, statusCode: response.statusCode);
+  }
+
+  @override
+  Future<ParseNetworkByteResponse> getBytes(
+    String path, {
+    ParseNetworkOptions? options,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final http.Response response = await _client.get(
+      Uri.parse(path),
+      headers: options?.headers,
+    );
+    return ParseNetworkByteResponse(
+        bytes: response.bodyBytes, statusCode: response.statusCode);
+  }
+
+  @override
+  Future<ParseNetworkResponse> put(
+    String path, {
+    String? data,
+    ParseNetworkOptions? options,
+  }) async {
+    final http.Response response = await _client.put(
+      Uri.parse(path),
+      body: data,
+      headers: options?.headers,
+    );
+    return ParseNetworkResponse(
+        data: response.body, statusCode: response.statusCode);
+  }
+
+  @override
+  Future<ParseNetworkResponse> post(
+    String path, {
+    String? data,
+    ParseNetworkOptions? options,
+  }) async {
+    final http.Response response = await _client.post(
+      Uri.parse(path),
+      body: data,
+      headers: options?.headers,
+    );
+    return ParseNetworkResponse(
+        data: response.body, statusCode: response.statusCode);
+  }
+
+  @override
+  Future<ParseNetworkResponse> postBytes(
+    String path, {
+    Stream<List<int>>? data,
+    ParseNetworkOptions? options,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final http.Response response = await _client.post(
+      Uri.parse(path),
+      //Convert the stream to a list
+      body: await data?.fold<List<int>>(<int>[],
+          (List<int> previous, List<int> element) => previous..addAll(element)),
+      headers: options?.headers,
+    );
+    return ParseNetworkResponse(
+        data: response.body, statusCode: response.statusCode);
+  }
+
+  @override
+  Future<ParseNetworkResponse> delete(String path,
+      {ParseNetworkOptions? options}) async {
+    final http.Response response = await _client.delete(
+      Uri.parse(path),
+      headers: options?.headers,
+    );
+    return ParseNetworkResponse(
+        data: response.body, statusCode: response.statusCode);
+  }
+}
+
+/// Creates a custom version of HTTP Client that has Parse Data Preset
+class _ParseHTTPClient extends http.BaseClient {
+  _ParseHTTPClient(
+      {bool sendSessionId = false, SecurityContext? securityContext})
+      : _sendSessionId = sendSessionId,
+        _client = securityContext != null
+            ? IOClient(HttpClient(context: securityContext))
+            : http.Client();
+
+  final http.Client _client;
   final bool _sendSessionId;
   final String _userAgent = '$keyLibraryName $keySdkVersion';
-  ParseCoreData data = ParseCoreData();
-  Map<String, String> additionalHeaders;
+  ParseCoreData parseCoreData = ParseCoreData();
+  Map<String, String>? additionalHeaders;
 
   /// Overrides the call method for HTTP Client and adds custom headers
   @override
-  Future<Response<T>> request<T>(
-    String path, {
-    dynamic data,
-    Map<String, dynamic> queryParameters,
-    CancelToken cancelToken,
-    dio.Options options,
-    ProgressCallback onSendProgress,
-    ProgressCallback onReceiveProgress,
-  }) {
-    options ??= Options();
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
     if (!identical(0, 0.0)) {
-      options.headers[keyHeaderUserAgent] = _userAgent;
+      request.headers[keyHeaderUserAgent] = _userAgent;
     }
-    options.headers[keyHeaderApplicationId] = this.data.applicationId;
-    if ((_sendSessionId == true) &&
-        (this.data.sessionId != null) &&
-        (options.headers[keyHeaderSessionToken] == null))
-      options.headers[keyHeaderSessionToken] = this.data.sessionId;
+    request.headers[keyHeaderApplicationId] = parseCoreData.applicationId;
+    if (_sendSessionId &&
+        parseCoreData.sessionId != null &&
+        request.headers[keyHeaderSessionToken] == null)
+      request.headers[keyHeaderSessionToken] = parseCoreData.sessionId!;
 
-    if (this.data.clientKey != null)
-      options.headers[keyHeaderClientKey] = this.data.clientKey;
-    if (this.data.masterKey != null)
-      options.headers[keyHeaderMasterKey] = this.data.masterKey;
+    if (parseCoreData.clientKey != null)
+      request.headers[keyHeaderClientKey] = parseCoreData.clientKey!;
+    if (parseCoreData.masterKey != null)
+      request.headers[keyHeaderMasterKey] = parseCoreData.masterKey!;
 
     /// If developer wants to add custom headers, extend this class and add headers needed.
-    if (additionalHeaders != null && additionalHeaders.isNotEmpty) {
-      additionalHeaders
-          .forEach((String key, String value) => options.headers[key] = value);
+    if (additionalHeaders != null && additionalHeaders!.isNotEmpty) {
+      additionalHeaders!
+          .forEach((String key, String value) => request.headers[key] = value);
     }
 
-    if (this.data.debug) {
-      logCUrl(options, data, path);
+    if (parseCoreData.debug) {
+      _logCUrl(request);
     }
 
-    return super.request(
-      path,
-      data: data,
-      queryParameters: queryParameters,
-      cancelToken: cancelToken,
-      options: options,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
+    return _client.send(request);
+  }
+
+  void _logCUrl(http.BaseRequest request) {
+    String curlCmd = 'curl';
+    curlCmd += ' -X ' + request.method;
+    bool compressed = false;
+    request.headers.forEach((String name, String value) {
+      if (name.toLowerCase() == 'accept-encoding' &&
+          value.toLowerCase() == 'gzip') {
+        compressed = true;
+      }
+      curlCmd += ' -H \'$name: $value\'';
+    });
+    if (request.method == 'POST' || request.method == 'PUT') {
+      if (request is http.Request) {
+        final String body = latin1.decode(request.bodyBytes);
+        curlCmd += ' -d \'$body\'';
+      }
+    }
+
+    curlCmd += (compressed ? ' --compressed ' : ' ') + request.url.toString();
+    curlCmd += '\n\n ${Uri.decodeFull(request.url.toString())}';
+    print('╭-- Parse Request');
+    print(curlCmd);
+    print('╰--');
   }
 }

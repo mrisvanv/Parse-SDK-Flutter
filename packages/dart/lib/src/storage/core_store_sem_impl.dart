@@ -4,16 +4,29 @@ part of flutter_parse_sdk;
 class CoreStoreSembastImp implements CoreStore {
   CoreStoreSembastImp._internal(this._database, this._store);
 
-  static CoreStoreSembastImp _instance;
+  static CoreStoreSembastImp? _instance;
 
-  static Future<CoreStore> getInstance(String dbPath,
-      {DatabaseFactory factory, String password = 'flutter_sdk'}) async {
+  static Future<CoreStoreSembastImp> getInstance(String dbPath,
+      {DatabaseFactory? factory, String? password}) async {
+    password ??= 'flutter_sdk';
     if (_instance == null) {
       factory ??= !parseIsWeb ? databaseFactoryIo : databaseFactoryWeb;
       assert(() {
         if (parseIsWeb) {
           print(
+              '***********************************************************************************************************');
+          print(
               'Warning: CoreStoreSembastImp of the Parse_Server_SDK does not encrypt the database on WEB.');
+          print(
+              '***********************************************************************************************************');
+        }
+        if (password == 'flutter_sdk') {
+          print(
+              '***********************************************************************************************************');
+          print(
+              'Warning: CoreStoreSembastImp uses the default password. Specify a custom password for increased security.');
+          print(
+              '***********************************************************************************************************');
         }
         return true;
       }());
@@ -23,7 +36,7 @@ class CoreStoreSembastImp implements CoreStore {
           CoreStoreSembastImp._internal(db, StoreRef<String, String>.main());
     }
 
-    return _instance;
+    return _instance!;
   }
 
   final Database _database;
@@ -31,7 +44,7 @@ class CoreStoreSembastImp implements CoreStore {
 
   @override
   Future<bool> clear() {
-    return _store.drop(_database);
+    return _store.drop(_database) as Future<bool>;
   }
 
   @override
@@ -45,32 +58,32 @@ class CoreStoreSembastImp implements CoreStore {
   }
 
   @override
-  Future<bool> getBool(String key) async {
-    final bool storedItem = await get(key);
+  Future<bool?> getBool(String key) async {
+    final bool? storedItem = await get(key);
     return storedItem;
   }
 
   @override
-  Future<double> getDouble(String key) async {
-    final double storedItem = await get(key);
+  Future<double?> getDouble(String key) async {
+    final double? storedItem = await get(key);
     return storedItem;
   }
 
   @override
-  Future<int> getInt(String key) async {
-    final int storedItem = await get(key);
+  Future<int?> getInt(String key) async {
+    final int? storedItem = await get(key);
     return storedItem;
   }
 
   @override
-  Future<String> getString(String key) async {
-    final String storedItem = await get(key);
+  Future<String?> getString(String key) async {
+    final String? storedItem = await get(key);
     return storedItem;
   }
 
   @override
-  Future<List<String>> getStringList(String key) async {
-    final List<String> storedItem = await get(key);
+  Future<List<String>?> getStringList(String key) async {
+    final List<String>? storedItem = await get(key);
     return storedItem;
   }
 
